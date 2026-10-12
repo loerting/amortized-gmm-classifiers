@@ -41,8 +41,8 @@ def main():
                     row = dict(dataset=dataset, model=model, labels=labels, seed=seed)
                     if model == 'nn_ts':
                         run = fit(dataset, 'nn', labels, seed, epochs=args.epochs, val_frac=0.1)
-                        T = fit_temperature(run.proba(run.split.X_val), run.split.y_val)
-                        probs = apply_temperature(run.proba(run.split.X_test), T)
+                        T = fit_temperature(run.log_proba(run.split.X_val), run.split.y_val)
+                        probs = apply_temperature(run.log_proba(run.split.X_test), T)
                         row['temperature'] = T
                     else:
                         run = fit(dataset, model, labels, seed, epochs=args.epochs)

@@ -54,10 +54,13 @@ class NNClassifier:
                 F.nll_loss(self.net(X[b]), y[b], ignore_index=-1).backward()
                 self.optimizer.step()
 
-    def predict_proba(self, X):
+    def predict_log_proba(self, X):
         self.net.eval()
         with torch.no_grad():
-            return self.net(X).double().exp()
+            return self.net(X).double()
+
+    def predict_proba(self, X):
+        return self.predict_log_proba(X).exp()
 
 
 class _SemiSupervisedGMM(Gaussian):

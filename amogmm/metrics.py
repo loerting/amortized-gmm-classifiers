@@ -42,9 +42,10 @@ def screening(s, y):
                 mid=int(((s >= 0.001) & (s <= 0.5)).sum()))
 
 
-def fit_temperature(probs, y):
-    """Temperature T minimizing the negative log-likelihood of softmax(log p / T)."""
-    logits = np.log(np.clip(probs, 1e-12, None))
+def fit_temperature(logp, y):
+    """Temperature T minimizing the negative log-likelihood of softmax(log p / T), with log p
+    the log-softmax output of the network."""
+    logits = np.asarray(logp, dtype=np.float64)
 
     def nll(T):
         z = logits / T
@@ -55,8 +56,8 @@ def fit_temperature(probs, y):
     return float(minimize_scalar(nll, bounds=(0.05, 20.0), method='bounded').x)
 
 
-def apply_temperature(probs, T):
-    z = np.log(np.clip(probs, 1e-12, None)) / T
+def apply_temperature(logp, T):
+    z = np.asarray(logp, dtype=np.float64) / T
     z -= z.max(1, keepdims=True)
     p = np.exp(z)
     return p / p.sum(1, keepdims=True)

@@ -36,6 +36,10 @@ class Trained:
         return torch.cat([self.clf.predict_proba(X[b:b + self.batch_size])
                           for b in range(0, len(X), self.batch_size)]).double().cpu().numpy()
 
+    def log_proba(self, X):
+        """log p(k|x) of the NN baseline in double precision as a numpy array."""
+        return self.clf.predict_log_proba(self.tensor(X)).cpu().numpy()
+
     def log_px(self, X):
         return self.clf.log_px(self.tensor(X)).cpu().numpy()
 
