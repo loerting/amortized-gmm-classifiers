@@ -84,11 +84,10 @@ split into jobs, each writing to its own file such as `results/ood-part3.json`. 
 `results/<name>-*.json` are read together, and a run that appears twice is taken from the
 later file.
 
-The detection control with the Bare GMM in Section 5.3 is not part of the grid:
+The detection control with the Bare GMM + CA in Section 5.3 is not part of the grid:
 
 ```bash
-python experiments/ood.py --datasets mnist --labels 1 --models bare bare_ca --seeds 1 \
-    --out results/ood_control.json
+python experiments/ood.py --labels 1 --models bare_ca --out results/ood_control.json
 ```
 
 ## Figures and tables

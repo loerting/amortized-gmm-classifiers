@@ -101,10 +101,9 @@ def ood():
         print(f'  all labels, AUROC: NN {mean(auroc[k("nn", "all")]):.2f}, '
               f'matched {mean(auroc[k("nn_matched", "all")]):.2f}')
     control = by_seed(load('ood_control'), lambda r: r['log_px']['auroc'], 'dataset', 'model', 'labels')
-    for ds, lv in sorted({(k[0], k[2]) for k in control}):
-        diff = mean(control[(ds, 'bare_ca', lv)]) - mean(control[(ds, 'bare', lv)])
-        print(f'{TITLE[ds]}, {lv} label(s)/class, seeds {sorted(control[(ds, "bare", lv)])}: '
-              f'AUROC of Bare GMM + CA minus Bare GMM {diff:+.1e}')
+    for ds, m, lv in sorted(control):
+        diff = mean(control[(ds, m, lv)]) - mean(auroc[(ds, 'bare', lv)])
+        print(f'{TITLE[ds]}, {lv} label(s)/class: AUROC of Bare GMM + CA minus Bare GMM {diff:+.1e}')
 
 
 def pooled(rows, ds, m, lv):
