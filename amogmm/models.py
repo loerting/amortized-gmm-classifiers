@@ -1,6 +1,7 @@
 # Copyright (C) 2026 Leonhard Kohl-Lörting, Artificial Intelligence Lab of the University of Innsbruck.
 # Licensed under the Academic Free License version 3.0
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -33,6 +34,11 @@ class MatchedNet(nn.Module):
         q = torch.exp(self.encoder(x))
         return torch.log(q @ torch.softmax(self.W, dim=1) + 1e-10)
 
+    def log_proba_double(self, x):
+        """log p(k|x) = log sum_c q(c|x) p(k|c) in double precision."""
+        return torch.logsumexp(self.encoder(x).double()[:, :, None]
+                               + torch.log_softmax(self.W.double(), dim=1)[None], dim=1)
+
 
 class NNClassifier:
     """Discriminative baseline, trained on the cross-entropy of the labeled points."""
@@ -55,12 +61,17 @@ class NNClassifier:
                 self.optimizer.step()
 
     def predict_log_proba(self, X):
+        """log p(k|x) in double precision."""
         self.net.eval()
         with torch.no_grad():
+            if isinstance(self.net, MatchedNet):
+                return self.net.log_proba_double(X)
             return self.net(X).double()
 
     def predict_proba(self, X):
-        return self.predict_log_proba(X).exp()
+        self.net.eval()
+        with torch.no_grad():
+            return self.net(X).double().exp()
 
 
 class _SemiSupervisedGMM(Gaussian):
@@ -159,16 +170,24 @@ class BareGMM(_TabularAssignments, _SemiSupervisedGMM):
         pjc.copy_(q)
         self._M_step_update(X, pjc)
 
-    def predict_proba(self, X):
+    def predict_log_proba(self, X):
+        """log p(k|x) in double precision. With few labels the class posteriors of many inputs
+        differ by less than the resolution of log p(x, k) in single precision."""
         with torch.no_grad():
-            log_p_x_given_c = self._mvn().log_prob(X.unsqueeze(1))
-            log_pi_ck = torch.log(self.pi_ck + 1e-10)
-            log_phi = torch.log(self.phi + 1e-10)
-            log_p_xk = torch.zeros((len(X), self.K), dtype=self.dtype, device=self.device)
-            for k in range(self.K):
-                log_p_xk[:, k] = torch.logsumexp(
-                    log_p_x_given_c + log_pi_ck[k].unsqueeze(0) + log_phi[k], dim=1)
-            return torch.exp(log_p_xk - torch.logsumexp(log_p_xk, dim=1, keepdim=True))
+            var = self.variance.double() + 1e-6
+            mu = self.means.double()
+            prec = 1.0 / var
+            X = X.double()
+            maha = (X ** 2) @ prec.T - 2 * X @ (mu * prec).T + (mu ** 2 * prec).sum(-1)[None]
+            log_p_x_given_c = -0.5 * (maha + torch.log(var).sum(-1)[None]
+                                      + self.D * np.log(2 * np.pi))
+            log_p_xk = torch.logsumexp(log_p_x_given_c[:, None, :]
+                                       + torch.log(self.pi_ck.double() + 1e-10)[None]
+                                       + torch.log(self.phi.double() + 1e-10)[None, :, None], 2)
+            return log_p_xk - torch.logsumexp(log_p_xk, 1, keepdim=True)
+
+    def predict_proba(self, X):
+        return self.predict_log_proba(X).exp()
 
     def log_px(self, X, batch_size=512):
         with torch.no_grad():

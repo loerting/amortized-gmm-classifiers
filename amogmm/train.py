@@ -3,6 +3,7 @@
 
 import numpy as np
 import torch
+from scipy.special import logsumexp
 
 from . import data
 from .models import AmortizedGMM, AmortizedGMMCA, BareGMM, BareGMMCA, NNClassifier, mlp
@@ -28,17 +29,26 @@ class Trained:
     def tensor(self, X):
         return torch.tensor(np.asarray(X), dtype=torch.float32, device=self.device)
 
+    def _batched(self, f, X):
+        if isinstance(self.clf, NNClassifier):
+            return f(X)
+        return torch.cat([f(X[b:b + self.batch_size]) for b in range(0, len(X), self.batch_size)])
+
     def proba(self, X):
         """p(k|x) in double precision as a numpy array."""
-        X = self.tensor(X)
-        if isinstance(self.clf, NNClassifier):
-            return self.clf.predict_proba(X).cpu().numpy()
-        return torch.cat([self.clf.predict_proba(X[b:b + self.batch_size])
-                          for b in range(0, len(X), self.batch_size)]).double().cpu().numpy()
+        return self._batched(self.clf.predict_proba, self.tensor(X)).double().cpu().numpy()
 
     def log_proba(self, X):
-        """log p(k|x) of the NN baseline in double precision as a numpy array."""
-        return self.clf.predict_log_proba(self.tensor(X)).cpu().numpy()
+        """log p(k|x) of the NN baselines and the Bare GMM in double precision."""
+        return self._batched(self.clf.predict_log_proba, self.tensor(X)).cpu().numpy()
+
+    def max_softmax(self, X):
+        """Maximum softmax probability as a ranking score. Where log p(k|x) is available in
+        double precision, -log(1 - max_k p(k|x)) is computed from the other classes, which
+        orders the inputs in the same way without the ties of single precision."""
+        if hasattr(self.clf, 'predict_log_proba'):
+            return -logsumexp(np.sort(self.log_proba(X), axis=1)[:, :-1], axis=1)
+        return self.proba(X).max(1)
 
     def log_px(self, X):
         return self.clf.log_px(self.tensor(X)).cpu().numpy()

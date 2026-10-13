@@ -34,7 +34,7 @@ def main():
                                   held_out_class=held_out)
                         s = run.split
                         probs = run.proba(s.X_test)
-                        msp = probs.max(1)
+                        msp = run.max_softmax(s.X_test)
                         scores = {'msp': detection(msp[~s.is_ood], msp[s.is_ood])}
                         if not model.startswith('nn'):
                             lpx = run.log_px(s.X_test)
