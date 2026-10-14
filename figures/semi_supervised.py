@@ -123,7 +123,7 @@ def mechanism():
     handles.append(Line2D([], [], ls='', marker='o', ms=5, mfc='none', mec='#333333', mew=0.9,
                           label='undecided'))
     fig.legend(handles=handles, loc='lower center', ncol=11, frameon=False,
-               bbox_to_anchor=(0.5, -0.13), columnspacing=0.9, handletextpad=0.2)
+               bbox_to_anchor=(0.5, -0.2), columnspacing=0.9, handletextpad=0.2)
     fig.tight_layout()
     style.save(fig, 'mech_mnist.pdf')
 
