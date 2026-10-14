@@ -6,7 +6,9 @@ and budget_mnist.pdf."""
 import os
 from collections import defaultdict
 
+import matplotlib.colors as mcolors
 import numpy as np
+from matplotlib.lines import Line2D
 from matplotlib.patches import Rectangle
 from sklearn.manifold import TSNE
 from sklearn.neighbors import NearestNeighbors
@@ -92,6 +94,9 @@ def neighbor_agreement(means, cls, k=5):
 
 
 def mechanism():
+    """Component means in a t-SNE projection. The edge color is the hardened class
+    argmax_k p(k|c), the fill runs from filled at max_k p(k|c) = 1 to unfilled at 1/K, and
+    decided components are drawn on top."""
     d = np.load(os.path.join(RESULTS, 'examples', 'mechanism.npz'))
     both = np.vstack([d['amo_means'], d['amo_ca_means']])
     Z = TSNE(n_components=2, perplexity=20, init='pca', random_state=0).fit_transform(both)
@@ -100,19 +105,24 @@ def mechanism():
     fig, axes = plt.subplots(1, 2)
     for ax, m, title in ((axes[0], 'amo', 'tabular class-assignments'),
                          (axes[1], 'amo_ca', 'amortized class-assignments')):
-        cls = d[f'{m}_pkc'].argmax(0)
-        for k in range(10):
-            sel = cls == k
-            if sel.any():
-                ax.scatter(Z[m][sel, 0], Z[m][sel, 1], s=26, c=DIGIT_COLORS[k], alpha=0.9,
-                           edgecolors='white', linewidths=0.4, label=str(k))
+        pkc = d[f'{m}_pkc']
+        cls = pkc.argmax(0)
+        decided = np.clip((pkc.max(0) - 1 / len(pkc)) / (1 - 1 / len(pkc)), 0, 1)
+        edge = np.array([mcolors.to_rgb(DIGIT_COLORS[k]) for k in cls])
+        order = np.argsort(decided)
+        ax.scatter(Z[m][order, 0], Z[m][order, 1], s=24, facecolors=np.c_[edge, decided][order],
+                   edgecolors=edge[order], linewidths=0.9)
         agree = neighbor_agreement(d[f'{m}_means'], cls)
         ax.set_title(f'{title}\nnearest-neighbor class agreement: {100 * agree:.0f}{style.pct()}')
         ax.set_xticks([])
         ax.set_yticks([])
         for side in ax.spines.values():
             side.set_color('#c3cad3')
-    fig.legend(*axes[1].get_legend_handles_labels(), loc='lower center', ncol=10, frameon=False,
+    handles = [Line2D([], [], ls='', marker='o', ms=5, mfc=DIGIT_COLORS[k], mec=DIGIT_COLORS[k],
+                      mew=0.9, label=str(k)) for k in range(10)]
+    handles.append(Line2D([], [], ls='', marker='o', ms=5, mfc='none', mec='#333333', mew=0.9,
+                          label='undecided'))
+    fig.legend(handles=handles, loc='lower center', ncol=11, frameon=False,
                bbox_to_anchor=(0.5, -0.13), columnspacing=0.9, handletextpad=0.2)
     fig.tight_layout()
     style.save(fig, 'mech_mnist.pdf')
