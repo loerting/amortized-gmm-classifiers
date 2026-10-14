@@ -73,9 +73,11 @@ def blank(ax, title, ylabel=False):
         ax.set_ylabel('Feature 2')
 
 
-def nn_boundary(n_samples=300, data_seed=1, torch_seed=0, epochs=(5, 20, 200)):
+def nn_boundary(n_samples=300, data_seed=5, torch_seed=0, epochs=(5, 20, 200)):
     """A ReLU network trained on all labels, at three stages of training, and its final
-    boundary next to the Bayes-optimal one."""
+    boundary next to the Bayes-optimal one. In the sample of seed 5 the Bayes-optimal
+    classifier classifies every training point correctly, so the network needs no detour
+    around single points to separate them."""
     X, y, params = two_ellipses(n_samples, data_seed)
     xx, yy, G = grid(X)
     torch.manual_seed(torch_seed)
@@ -99,7 +101,7 @@ def nn_boundary(n_samples=300, data_seed=1, torch_seed=0, epochs=(5, 20, 200)):
             regions(axes[i], xx, yy, boundary())
             scatter(axes[i], X, y, legend=i == 0)
             blank(axes[i], f'Epoch {epoch}', ylabel=i == 0)
-    axes[0].legend(loc='upper left', framealpha=0.9, prop={'size': 8})
+    axes[0].legend(loc='lower left', framealpha=0.9, prop={'size': 8})
     plt.tight_layout()
     style.save(fig, 'fig_nn_boundary.pdf')
 
@@ -110,7 +112,7 @@ def nn_boundary(n_samples=300, data_seed=1, torch_seed=0, epochs=(5, 20, 200)):
         regions(ax, xx, yy, pred)
         scatter(ax, X, y, legend=ax is axes[0])
         blank(ax, title, ylabel=ax is axes[0])
-    axes[0].legend(loc='upper left', framealpha=0.9, prop={'size': 8})
+    axes[0].legend(loc='lower left', framealpha=0.9, prop={'size': 8})
     plt.tight_layout()
     style.save(fig, 'fig_nn_vs_optimal_boundary.pdf')
 
